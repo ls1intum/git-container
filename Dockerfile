@@ -5,11 +5,11 @@ FROM golang:1.24-alpine AS builder
 WORKDIR /app
 
 # Copy go.mod and go.sum files
-COPY ./HadesCloneContainer/go.mod ./HadesCloneContainer/go.sum ./
+COPY go.mod go.sum .
 RUN go mod download
 
 # Copy the Go application source code into the container
-COPY ./HadesCloneContainer ./
+COPY . .
 
 # Build the Go application
 RUN CGO_ENABLED=0 go build -o hades-clone .
