@@ -7,7 +7,7 @@ toolchain go1.24.1
 require (
 	github.com/go-git/go-git/v5 v5.16.2
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
