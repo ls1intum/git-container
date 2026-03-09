@@ -20,4 +20,4 @@ on:
 jobs:
   build:
     if: github.actor != 'dependabot[bot]'
-    uses: ls1intum/.github/.github/workflows/build-and-push-docker-image.yml@v1.1.1
+    uses: ls1intum/.github/.github/workflows/build-and-push-docker-image.yml@v1.2.0
