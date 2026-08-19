@@ -8,6 +8,7 @@ func TestFromMap(t *testing.T) {
 		"USERNAME": "john",
 		"PASSWORD": "secret",
 		"BRANCH":   "main",
+		"COMMIT":   "0123456789abcdef0123456789abcdef01234567",
 		"PATH":     "/path/to/repo",
 	}
 
@@ -16,6 +17,7 @@ func TestFromMap(t *testing.T) {
 		Username: "john",
 		Password: "secret",
 		Branch:   "main",
+		Commit:   "0123456789abcdef0123456789abcdef01234567",
 		Path:     "/path/to/repo",
 	}
 

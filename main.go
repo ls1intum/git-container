@@ -67,11 +67,33 @@ func main() {
 		}
 
 		// Execute the clone operation
-		_, err := git.PlainClone(repodir, false, clone_options)
+		r, err := git.PlainClone(repodir, false, clone_options)
 		if err != nil {
 			log.WithError(err).Error("Failed to clone repository")
 			continue
 		}
 		log.Infof("Cloned repository %s to %s", repo.URL, repodir)
+
+		// Check out a specific commit if one is requested. This guarantees the
+		// container tests the exact commit the job was scheduled for, even if a
+		// newer commit was pushed to the branch after the job was queued.
+		if repo.Commit != "" {
+			if err := checkoutCommit(r, repo.Commit); err != nil {
+				log.WithError(err).Errorf("Failed to check out commit %s", repo.Commit)
+				continue
+			}
+			log.Infof("Checked out commit %s in %s", repo.Commit, repodir)
+		}
 	}
+}
+
+// checkoutCommit checks out the given full 40-character SHA-1 commit hash in the
+// worktree of the already cloned repository. The clone is full (no Depth or
+// SingleBranch), so the target commit is present in the object database.
+func checkoutCommit(r *git.Repository, commit string) error {
+	w, err := r.Worktree()
+	if err != nil {
+		return err
+	}
+	return w.Checkout(&git.CheckoutOptions{Hash: plumbing.NewHash(commit)})
 }
