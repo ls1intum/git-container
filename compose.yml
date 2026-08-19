@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/ls1intum/git-container:latest
+    image: ghcr.io/hades-scheduler/git-container:latest
     environment:
       - DEBUG=true
       - HADES_HELLO_URL=http://hades_hello_1:8080/example.git
