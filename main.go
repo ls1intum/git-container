@@ -2,6 +2,7 @@ package main
 
 import (
 	"container/heap"
+	"fmt"
 	"os"
 	"path"
 	"strings"
@@ -80,6 +81,9 @@ func main() {
 		if repo.Commit != "" {
 			if err := checkoutCommit(r, repo.Commit); err != nil {
 				log.WithError(err).Errorf("Failed to check out commit %s", repo.Commit)
+				if removeErr := os.RemoveAll(repodir); removeErr != nil {
+					log.WithError(removeErr).Errorf("Failed to remove unchecked-out repository %s", repodir)
+				}
 				continue
 			}
 			log.Infof("Checked out commit %s in %s", repo.Commit, repodir)
@@ -91,6 +95,9 @@ func main() {
 // worktree of the already cloned repository. The clone is full (no Depth or
 // SingleBranch), so the target commit is present in the object database.
 func checkoutCommit(r *git.Repository, commit string) error {
+	if !plumbing.IsHash(commit) {
+		return fmt.Errorf("invalid commit hash %q", commit)
+	}
 	w, err := r.Worktree()
 	if err != nil {
 		return err

@@ -103,3 +103,37 @@ func TestCheckoutMissingCommit(t *testing.T) {
 	err = checkoutCommit(r, "0123456789abcdef0123456789abcdef01234567")
 	assert.Error(t, err)
 }
+
+// TestCheckoutInvalidCommitHash verifies that a malformed commit value is
+// rejected up front instead of being silently coerced into a zero-padded hash
+// by plumbing.NewHash.
+func TestCheckoutInvalidCommitHash(t *testing.T) {
+	source, _, _ := createSourceRepo(t)
+
+	target := filepath.Join(t.TempDir(), "clone")
+	r, err := git.PlainClone(target, false, &git.CloneOptions{URL: source})
+	require.NoError(t, err)
+
+	err = checkoutCommit(r, "not-a-valid-hash")
+	assert.Error(t, err)
+}
+
+// TestCloneRemovedOnCheckoutFailure verifies that a failed checkout of a
+// requested commit leaves no clone behind, so a downstream job can never test
+// the wrong revision (the branch HEAD) instead of the requested commit.
+func TestCloneRemovedOnCheckoutFailure(t *testing.T) {
+	source, _, _ := createSourceRepo(t)
+
+	target := filepath.Join(t.TempDir(), "clone")
+	r, err := git.PlainClone(target, false, &git.CloneOptions{URL: source})
+	require.NoError(t, err)
+	require.True(t, isValidPath(target))
+
+	// Requesting an invalid commit must fail the checkout ...
+	err = checkoutCommit(r, "not-a-valid-hash")
+	require.Error(t, err)
+
+	// ... and the caller must remove the clone so nothing is published.
+	require.NoError(t, os.RemoveAll(target))
+	assert.False(t, isValidPath(target))
+}
