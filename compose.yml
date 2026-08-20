@@ -6,11 +6,42 @@ services:
     image: ghcr.io/hades-scheduler/git-container:latest
     environment:
       - DEBUG=true
-      - HADES_HELLO_URL=http://hades_hello_1:8080/example.git
-      - HADES_HELLO_USERNAME=user
-      - HADES_HELLO_PASSWORD=secret
-      - HADES_HELLO_PATH=./hello
-      - HADES_HELLO_ORDER=1
       - REPOSITORY_DIR=/opt/repositories
+
+      # First repository: the tests, cloned into /opt/repositories/example
+      - HADES_TEST_URL=https://github.com/Mtze/Artemis-Java-Test.git
+      - HADES_TEST_PATH=./example
+      - HADES_TEST_ORDER=1
+
+      # Second repository: the assignment, cloned into /opt/repositories/example/assignment
+      - HADES_ASSIGNMENT_URL=https://github.com/Mtze/Artemis-Java-Solution.git
+      - HADES_ASSIGNMENT_PATH=./example/assignment
+      - HADES_ASSIGNMENT_ORDER=2
     volumes:
       - ./repo:/opt/repositories
+
+  # Same two repositories, but pinned to exact commits with COMMIT. Each
+  # repository is checked out at the given SHA-1 after cloning instead of the
+  # branch HEAD, so the result is reproducible even if new commits are pushed.
+  git-container-pinned:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/hades-scheduler/git-container:latest
+    environment:
+      - DEBUG=true
+      - REPOSITORY_DIR=/opt/repositories
+
+      # First repository: the tests, cloned into /opt/repositories/example
+      - HADES_TEST_URL=https://github.com/Mtze/Artemis-Java-Test.git
+      - HADES_TEST_PATH=./example
+      - HADES_TEST_COMMIT=ecf7145132bcd898a8d05a918831d048b38ded43
+      - HADES_TEST_ORDER=1
+
+      # Second repository: the assignment, cloned into /opt/repositories/example/assignment
+      - HADES_ASSIGNMENT_URL=https://github.com/Mtze/Artemis-Java-Solution.git
+      - HADES_ASSIGNMENT_PATH=./example/assignment
+      - HADES_ASSIGNMENT_COMMIT=889d0f0391f5d70480f9918fd797fce3c00be90d
+      - HADES_ASSIGNMENT_ORDER=2
+    volumes:
+      - ./repo-pinned:/opt/repositories

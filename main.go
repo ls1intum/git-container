@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
@@ -18,6 +19,37 @@ var dir = "/opt/repositories/"
 func isValidPath(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil || os.IsExist(err)
+}
+
+// isWithinBase reports whether target is the base directory itself or a
+// descendant of it. It rejects clone destinations that use "../" traversal to
+// escape the configured base directory, while still accepting valid descendants
+// when the base is a relative "." or the filesystem root "/".
+func isWithinBase(base, target string) bool {
+	rel, err := filepath.Rel(filepath.Clean(base), filepath.Clean(target))
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// resolveRepoDir computes the clone destination for a repository below base.
+// It uses repo.Path when set, otherwise derives the directory name from the
+// last segment of repo.URL. The second return value reports whether the
+// destination stays within base; a false value means the repository must be
+// skipped instead of cloned outside base.
+func resolveRepoDir(base string, repo Repository) (string, bool) {
+	repodir := base
+	if repo.Path != "" {
+		repodir = path.Join(repodir, repo.Path)
+	} else {
+		parts := strings.Split(repo.URL, "/")
+		if len(parts) > 0 {
+			repoName := strings.TrimSuffix(parts[len(parts)-1], ".git")
+			repodir = path.Join(repodir, repoName)
+		}
+	}
+	return repodir, isWithinBase(base, repodir)
 }
 
 func main() {
@@ -36,7 +68,6 @@ func main() {
 	for repos.Len() > 0 {
 		repo := heap.Pop(&repos).(*Item).Repository
 		log.Debugf("Cloning repository: %+v", repo)
-		repodir := dir
 		// URL is mandatory
 		if repo.URL == "" {
 			log.Warn("Skipping repository without URL")
@@ -57,14 +88,13 @@ func main() {
 			clone_options.ReferenceName = plumbing.ReferenceName("refs/heads/" + repo.Branch)
 		}
 
-		if repo.Path != "" {
-			repodir = path.Join(repodir, repo.Path)
-		} else {
-			parts := strings.Split(repo.URL, "/")
-			if len(parts) > 0 {
-				repoName := strings.TrimSuffix(parts[len(parts)-1], ".git")
-				repodir = path.Join(repodir, repoName)
-			}
+		// Guard against a HADES_<group>_PATH or a repository URL whose derived
+		// name resolves the clone destination outside the base directory
+		// (e.g. "../../outside").
+		repodir, ok := resolveRepoDir(dir, repo)
+		if !ok {
+			log.Warnf("Skipping repository %q whose clone destination %q escapes the base directory", repo.URL, repodir)
+			continue
 		}
 
 		// Execute the clone operation

@@ -118,6 +118,61 @@ func TestCheckoutInvalidCommitHash(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// TestIsWithinBase verifies that repository paths are constrained to the base
+// directory, so a HADES_<group>_PATH cannot use "../" traversal to clone
+// outside REPOSITORY_DIR, while valid descendants are still accepted for
+// relative "." and root "/" base directories.
+func TestIsWithinBase(t *testing.T) {
+	cases := []struct {
+		base string
+		path string
+		want bool
+	}{
+		{"/opt/repositories/", "example", true},
+		{"/opt/repositories/", "example/assignment", true},
+		{"/opt/repositories/", "nested/deeper/repo", true},
+		{"/opt/repositories/", "../../outside", false},
+		{"/opt/repositories/", "../sibling", false},
+		{"/opt/repositories/", "example/../../escape", false},
+		// A relative base such as "." must still accept its descendants.
+		{".", "example", true},
+		{".", "../outside", false},
+		// The filesystem root must accept absolute descendants.
+		{"/", "example", true},
+		{"/", "example/sub", true},
+	}
+	for _, c := range cases {
+		got := isWithinBase(c.base, filepath.Join(c.base, c.path))
+		assert.Equalf(t, c.want, got, "base %q path %q", c.base, c.path)
+	}
+}
+
+// TestResolveRepoDir verifies the clone destination is derived correctly and
+// rejected when it escapes the base directory, both via an explicit Path and
+// via a repository URL whose last segment (e.g. a trailing "..") would resolve
+// outside the base directory.
+func TestResolveRepoDir(t *testing.T) {
+	base := "/opt/repositories"
+	cases := []struct {
+		name    string
+		repo    Repository
+		wantDir string
+		wantOK  bool
+	}{
+		{"explicit path", Repository{URL: "https://example.test/repo.git", Path: "example"}, "/opt/repositories/example", true},
+		{"derived from url", Repository{URL: "https://example.test/repo.git"}, "/opt/repositories/repo", true},
+		{"path escapes base", Repository{URL: "https://example.test/repo.git", Path: "../../outside"}, "", false},
+		{"url ending in dotdot escapes base", Repository{URL: "https://example.test/.."}, "", false},
+	}
+	for _, c := range cases {
+		gotDir, gotOK := resolveRepoDir(base, c.repo)
+		assert.Equalf(t, c.wantOK, gotOK, "%s: ok", c.name)
+		if c.wantOK {
+			assert.Equalf(t, c.wantDir, gotDir, "%s: dir", c.name)
+		}
+	}
+}
+
 // TestCloneRemovedOnCheckoutFailure verifies that a failed checkout of a
 // requested commit leaves no clone behind, so a downstream job can never test
 // the wrong revision (the branch HEAD) instead of the requested commit.
