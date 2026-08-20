@@ -118,6 +118,28 @@ func TestCheckoutInvalidCommitHash(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// TestIsWithinBase verifies that repository paths are constrained to the base
+// directory, so a HADES_<group>_PATH cannot use "../" traversal to clone
+// outside REPOSITORY_DIR.
+func TestIsWithinBase(t *testing.T) {
+	base := "/opt/repositories/"
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{"example", true},
+		{"example/assignment", true},
+		{"nested/deeper/repo", true},
+		{"../../outside", false},
+		{"../sibling", false},
+		{"example/../../escape", false},
+	}
+	for _, c := range cases {
+		got := isWithinBase(base, filepath.Join(base, c.path))
+		assert.Equalf(t, c.want, got, "path %q", c.path)
+	}
+}
+
 // TestCloneRemovedOnCheckoutFailure verifies that a failed checkout of a
 // requested commit leaves no clone behind, so a downstream job can never test
 // the wrong revision (the branch HEAD) instead of the requested commit.

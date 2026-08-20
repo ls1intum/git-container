@@ -25,7 +25,7 @@ The container is configured entirely through environment variables. There are tw
 
 Every repository to clone is described by a *group* of environment variables that share the naming scheme:
 
-```
+```text
 HADES_<group>_<type>
 ```
 
@@ -59,13 +59,13 @@ This has a few practical consequences:
 - **`<type>` is case-sensitive and must be upper-case.** The fields are matched against the exact keys `URL`, `USERNAME`, `PASSWORD`, `BRANCH`, `COMMIT`, `PATH`, and `ORDER`. A variable like `HADES_group1_url` is silently ignored.
 - **`<group>` is case-sensitive** but otherwise free-form. `HADES_Group1_URL` and `HADES_group1_URL` describe two different repositories.
 - A group **without a `URL`** is skipped with a warning; every other field is optional.
-- Any `HADES_...` name that has fewer than two underscores after the prefix is ignored.
+- Any `HADES_...` name that does not match `HADES_<group>_<type>` (i.e. has fewer than two underscores in the full name) is ignored.
 
 ### Cloning multiple repositories
 
 Cloning several repositories in one container run is simply a matter of defining several groups. Give each repository its own `<group>` label and the container clones all of them.
 
-By default all repositories share clone order `0` and the order in which they are cloned is unspecified. Set `HADES_<group>_ORDER` to an integer to make the order deterministic: repositories are cloned from the **lowest** `ORDER` value to the highest. This matters when one repository has to exist before another, for example an assignment repository that a test repository is placed inside.
+By default all repositories share clone order `0` and the order in which they are cloned is unspecified. Set `HADES_<group>_ORDER` to an integer to make the order deterministic: repositories are cloned from the **lowest** `ORDER` value to the highest. Give each repository a **unique** `ORDER` value where the sequence matters; repositories that share the same `ORDER` are cloned in an unspecified order relative to each other. This matters when one repository has to exist before another, for example an assignment repository that a test repository is placed inside.
 
 Give each repository a distinct `PATH` (or rely on the default, described below) so they do not clone into the same directory.
 
@@ -75,6 +75,8 @@ The target directory for a repository is derived as follows:
 
 - If `PATH` is set, the repository is cloned into `<REPOSITORY_DIR>/<PATH>`.
 - If `PATH` is not set, the container derives the directory name from the last segment of the `URL` with a trailing `.git` removed. For example `https://github.com/group1/repo1.git` clones into `<REPOSITORY_DIR>/repo1`.
+
+`PATH` is always resolved inside `REPOSITORY_DIR`. A value that escapes the base directory with `../` traversal is rejected and the repository is skipped with a warning.
 
 #### Example: two repositories
 

@@ -20,6 +20,14 @@ func isValidPath(path string) bool {
 	return err == nil || os.IsExist(err)
 }
 
+// isWithinBase reports whether target is the base directory itself or a
+// descendant of it, after cleaning. It rejects HADES_<group>_PATH values that
+// use "../" traversal to escape the configured base directory.
+func isWithinBase(base, target string) bool {
+	base = path.Clean(base)
+	return target == base || strings.HasPrefix(target, base+"/")
+}
+
 func main() {
 	if os.Getenv("DEBUG") == "true" {
 		log.SetLevel(log.DebugLevel)
@@ -58,7 +66,14 @@ func main() {
 		}
 
 		if repo.Path != "" {
-			repodir = path.Join(repodir, repo.Path)
+			candidate := path.Join(repodir, repo.Path)
+			// Guard against a HADES_<group>_PATH such as "../../outside" that
+			// would otherwise clone outside the base directory.
+			if !isWithinBase(repodir, candidate) {
+				log.Warnf("Skipping repository with path %q that escapes the base directory", repo.Path)
+				continue
+			}
+			repodir = candidate
 		} else {
 			parts := strings.Split(repo.URL, "/")
 			if len(parts) > 0 {
